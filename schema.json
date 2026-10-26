@@ -1,0 +1,91 @@
+{
+  "_comentario": "Esquema documental HIBRIDO para el subsistema de Hospitalizacion. Motor: MongoDB. Base de datos: hce_hospitalizacion_grupo_6. Cada bloque es una COLECCION real excepto diagnosticos y alta, que van EMBEBIDOS dentro de hospitalizaciones.",
+
+  "estrategia_resumen": {
+    "pacientes": "Coleccion propia (REFERENCIADO). Un paciente puede tener varias hospitalizaciones a lo largo de su vida; si lo embebieramos dentro de cada hospitalizacion, duplicariamos sus datos personales en cada ingreso y, si cambia un dato (ej. telefono), tocaria actualizar muchos documentos. Referenciar evita duplicacion y mantiene consistencia.",
+    "hospitalizaciones": "Coleccion propia (REFERENCIADO hacia paciente). Es el documento central del proceso; referencia a paciente_id y es referenciado por notas, signos vitales y ordenes.",
+    "diagnosticos": "EMBEBIDO dentro de hospitalizaciones. Son pocos por hospitalizacion (1 a 3), no crecen indefinidamente y siempre se consultan junto con la hospitalizacion (no tiene sentido verlos sueltos). Embeberlos evita un JOIN (lookup) innecesario.",
+    "alta": "EMBEBIDO dentro de hospitalizaciones (subdocumento, puede ser null mientras el paciente sigue hospitalizado). Es una relacion 1 a 1 que se escribe una sola vez al final del proceso; no crece ni se reutiliza en otro lado.",
+    "notas_evolucion": "Coleccion propia (REFERENCIADO hacia hospitalizacion_id). Se escriben varias veces al dia por distintos medicos durante dias o semanas: si estuvieran embebidas, el documento de la hospitalizacion creceria sin limite y cada insercion reescribiria un documento cada vez mas pesado (limite de 16MB de MongoDB). Referenciar permite insertar notas nuevas sin tocar el documento padre.",
+    "signos_vitales": "Coleccion propia (REFERENCIADO hacia hospitalizacion_id). Se toman cada pocas horas (alto volumen de escritura), por lo que es un dato que crece rapido; igual que las notas, se referencia para no inflar el documento de hospitalizacion.",
+    "ordenes_medicamento": "Coleccion propia (REFERENCIADO hacia hospitalizacion_id). Puede haber varias ordenes por hospitalizacion y se actualizan de estado (activa/suspendida/finalizada) de forma independiente; referenciar permite consultarlas y actualizarlas sin afectar el resto de la hospitalizacion.",
+    "notas_enfermeria": "Coleccion propia (REFERENCIADO hacia hospitalizacion_id). Igual que las notas de evolucion: se escriben con alta frecuencia (por turno), por lo que referenciar evita documentos gigantes y permite paginar/consultar por fecha facilmente."
+  },
+
+  "colecciones": {
+
+    "pacientes": {
+      "_id": "PAC001",
+      "documento_identidad": { "tipo": "CC", "numero": "43789123" },
+      "nombre_completo": "Maria Fernanda Restrepo Gomez",
+      "fecha_nacimiento": "1958-03-12",
+      "sexo": "F",
+      "eps": "EPS Sura",
+      "telefono": "3015558842",
+      "direccion": "Calle 45 # 23-10, Medellin",
+      "contacto_emergencia": { "nombre": "Jorge Restrepo", "parentesco": "hermano", "telefono": "3017779911" }
+    },
+
+    "hospitalizaciones": {
+      "_id": "HOSP001",
+      "paciente_id": "PAC001",
+      "fecha_admision": "2026-10-10T08:15:00Z",
+      "motivo_admision": "Dificultad respiratoria y fiebre de 3 dias de evolucion",
+      "servicio": "Medicina Interna",
+      "medico_tratante": "Dr. Andres Felipe Suarez",
+      "estado": "dada_de_alta",
+      "diagnosticos": [
+        { "codigo_cie10": "J18.9", "descripcion": "Neumonia, no especificada", "tipo": "principal", "fecha": "2026-10-10T09:00:00Z" }
+      ],
+      "alta": {
+        "fecha_alta": "2026-10-14T11:00:00Z",
+        "tipo_alta": "mejoria",
+        "diagnostico_egreso": "Neumonia adquirida en la comunidad resuelta",
+        "indicaciones": "Continuar amoxicilina via oral por 5 dias, control por consulta externa en 7 dias",
+        "medico_egreso": "Dr. Andres Felipe Suarez"
+      }
+    },
+
+    "notas_evolucion": {
+      "_id": "EVO0001",
+      "hospitalizacion_id": "HOSP001",
+      "fecha": "2026-10-11T07:30:00Z",
+      "medico": "Dr. Andres Felipe Suarez",
+      "nota": "Paciente afebril, mejoria de disnea, tolera via oral. Se continua manejo antibiotico."
+    },
+
+    "signos_vitales": {
+      "_id": "SV0001",
+      "hospitalizacion_id": "HOSP001",
+      "fecha": "2026-10-10T10:00:00Z",
+      "temperatura_c": 38.6,
+      "presion_arterial": "118/76",
+      "frecuencia_cardiaca": 98,
+      "frecuencia_respiratoria": 22,
+      "saturacion_o2": 92,
+      "registrado_por": "Enf. Paula Jimenez"
+    },
+
+    "ordenes_medicamento": {
+      "_id": "ORD0001",
+      "hospitalizacion_id": "HOSP001",
+      "medicamento": "Ampicilina/Sulbactam",
+      "dosis": "1.5 g",
+      "via": "intravenosa",
+      "frecuencia": "cada 8 horas",
+      "fecha_inicio": "2026-10-10T09:30:00Z",
+      "fecha_fin": "2026-10-13T09:30:00Z",
+      "medico_ordena": "Dr. Andres Felipe Suarez",
+      "estado": "finalizada"
+    },
+
+    "notas_enfermeria": {
+      "_id": "ENF0001",
+      "hospitalizacion_id": "HOSP001",
+      "fecha": "2026-10-10T14:00:00Z",
+      "turno": "tarde",
+      "enfermero": "Enf. Paula Jimenez",
+      "nota": "Paciente recibe oxigeno por canula nasal a 2 litros, saturacion mejora a 94%. Tolera dieta blanda."
+    }
+  }
+}
